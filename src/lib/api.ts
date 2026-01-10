@@ -4,7 +4,7 @@ import { tokenStore } from "@tzylo/auth-ce";
 import { apiKeyData } from "@/types/flux";
 
 const mainApi = axios.create({
-  baseURL: process.env.BASE_URL || "http://localhost:4000",
+  baseURL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:4000",
   withCredentials: true,
 });
 

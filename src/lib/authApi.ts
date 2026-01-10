@@ -1,7 +1,7 @@
-import { TzyloAuth, tokenStore } from "@tzylo/auth-ce";
+import { TzyloAuth } from "@tzylo/auth-ce";
 
 const client = new TzyloAuth({
-  baseURL: process.env.TZYLO_AUTH_URL || "http://localhost:7200",
+  baseURL: process.env.NEXT_PUBLIC_TZYLO_AUTH_URL || "http://localhost:7200",
 });
 
 export const authApi = {
@@ -10,28 +10,15 @@ export const authApi = {
   },
 
   async login(email: string, password: string) {
-    const session = await client.auth.login(email, password);
-
-    if (session?.accessToken) {
-      tokenStore.setToken(session.accessToken);
-    }
-
-    return session;
+    return client.auth.login(email, password);
   },
 
   async logout() {
     await client.auth.logout();
-    tokenStore.setToken(null);
   },
 
   async refresh() {
-    const session = await client.auth.refresh();
-
-    if (session?.accessToken) {
-      tokenStore.setToken(session.accessToken);
-    }
-
-    return session;
+    return client.auth.refresh();
   },
 
   me() {

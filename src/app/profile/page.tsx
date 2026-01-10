@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation"
 import { useUser } from "@/context/UserContext"
 
 export default function ProfileSetupPage() {
-  const { user } = useUser();
+  const { user, refetch } = useUser();
   const [form, setForm] = useState({
     fullName: user?.displayName || "",
     role: "",
@@ -62,7 +62,7 @@ export default function ProfileSetupPage() {
           displayName: form.fullName,
         })
       }
-
+      await refetch();
       if (response?.data) {
         router.push("/dashboard/flux")
       }

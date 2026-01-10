@@ -45,9 +45,9 @@ export function FluxConfiguredState({
         useCustomSMTP={useCustomSMTP}
         setUseCustomSMTP={setUseCustomSMTP}
       />
-      {useCustomSMTP && <SmtpConfig projectId={projectId}/>}
+      {/* {useCustomSMTP && <SmtpConfig projectId={projectId}/>}
       <SecurityNote />
-      <ActionsSection />
+      <ActionsSection /> */}
     </>
   )
 }

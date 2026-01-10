@@ -18,14 +18,14 @@ function EmailMethodSection({
         </p>
       </div>
 
-      <label className="flex items-center gap-2 text-sm font-medium">
+      {/* <label className="flex items-center gap-2 text-sm font-medium">
         <input
           type="checkbox"
           checked={useCustomSMTP}
           onChange={() => setUseCustomSMTP(!useCustomSMTP)}
         />
         Use my email provider (1000 emails / month free)
-      </label>
+      </label> */}
     </section>
   )
 }

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
-import api from "@/lib/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/context/AuthContext";
 import { authApi } from "@/lib/authApi"
@@ -16,7 +15,7 @@ export default function VerifyPage() {
   const [otp, setOtp] = useState("")
   const [cooldown, setCooldown] = useState(60)
   const router = useRouter()
-  const { identity } = useAuth();
+  const { identity, loadUser } = useAuth();
  
   const email = identity?.email;
 
@@ -30,7 +29,7 @@ export default function VerifyPage() {
   const handleVerify = async () => {
     try {
       await authApi.verifyOtp(email || "", otp);
-
+      await loadUser();
       router.push("/profile");
     } catch (err: any) {
       setError(err.message || "Verification failed.");
@@ -40,8 +39,8 @@ export default function VerifyPage() {
   const handleResend = async () => {
     if (!email) return
     try {
-      const response = await api.auth.sendOtp(email)
-      if (response.data.success) {
+      const response = await authApi.sendOtp(email)
+      if (response) {
         setCooldown(60)
         setMessage(response.data?.message)
       } else {
