@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AuthProvider } from "@/context/AuthContext";
-import { UserProvider } from "@/context/UserContext";
+import { ClerkProvider } from "@clerk/nextjs";
+import { ConsoleShell } from "@/components/ConsoleShell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Tzylo Console",
-  description: "A step towards tzylo",
+  description: "Living repository knowledge platform",
 };
 
 export default function RootLayout({
@@ -25,15 +25,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full flex flex-col bg-[#09090b] text-zinc-100`}
       >
-        <AuthProvider>
-          <UserProvider>
-            {children}
-          </UserProvider>
-        </AuthProvider>
+        <ClerkProvider>
+          <ConsoleShell>{children}</ConsoleShell>
+        </ClerkProvider>
       </body>
     </html>
   );
