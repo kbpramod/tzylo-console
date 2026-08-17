@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { UserButton, SignInButton, useUser } from '@clerk/nextjs';
-import { Home, BookOpen, MessageSquare, Plug, Settings, Layers, LogIn } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, Plug, Settings, Layers, LogIn, Video } from 'lucide-react';
 import { Repository } from '@/types/repository';
 import api from '@/lib/api';
 
@@ -58,6 +58,11 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
       name: 'Query',
       href: `/repositories/${currentRepoId}/query`,
       icon: MessageSquare,
+    },
+    {
+      name: 'Meetings',
+      href: '/meetings',
+      icon: Video,
     },
     {
       name: 'MCP',

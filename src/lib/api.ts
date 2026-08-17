@@ -53,6 +53,23 @@ export default {
   github: {
     install: () => mainApi.get("/api/github/install"),
   },
+  meetings: {
+    uploadTranscript: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      // Calls /api/v1/meetings/transcript
+      try {
+        return await axios.post("/api/v1/meetings/transcript", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } catch (err) {
+        // Fallback to mainApi if relative route fails
+        return await mainApi.post("/api/v1/meetings/transcript", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+    },
+  },
   health: {
     checkDb: () => mainApi.get("/health/db"),
   },
