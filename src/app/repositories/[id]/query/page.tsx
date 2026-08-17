@@ -2,8 +2,9 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
-import { Send, Sparkles, BookOpen, ExternalLink, Loader2 } from 'lucide-react';
-import { INITIAL_QUERIES, QueryResult } from '@/lib/mockData';
+import { Send, Sparkles, BookOpen, Loader2 } from 'lucide-react';
+import { QueryResult } from '@/types/repository';
+import api from '@/lib/api';
 
 export default function QueryPage({
   params,
@@ -13,7 +14,7 @@ export default function QueryPage({
   const { id } = use(params);
   const [question, setQuestion] = useState('');
   const [isQuerying, setIsQuerying] = useState(false);
-  const [queries, setQueries] = useState<QueryResult[]>(INITIAL_QUERIES);
+  const [queries, setQueries] = useState<QueryResult[]>([]);
 
   const navTabs = [
     { name: 'Overview', href: `/repositories/${id}`, active: false },
@@ -23,28 +24,36 @@ export default function QueryPage({
     { name: 'Settings', href: `/repositories/${id}/settings`, active: false },
   ];
 
-  const handleAsk = (queryText?: string) => {
+  const handleAsk = async (queryText?: string) => {
     const qToAsk = queryText || question;
     if (!qToAsk.trim()) return;
 
     setIsQuerying(true);
-
-    setTimeout(() => {
+    try {
+      const res = await api.repositories.query(id, qToAsk);
+      const data = res.data;
       const newQueryResult: QueryResult = {
-        id: Date.now().toString(),
+        id: data.id || Date.now().toString(),
         question: qToAsk,
-        answer: `Repository knowledge retrieval for "${id}": The requested feature implementation was derived from active codebase PR history. Components follow structured interfaces with explicit error boundaries, and environment settings are loaded from central configuration modules.`,
-        sources: [
-          { title: 'Core Implementation', category: 'Architecture', path: `src/core/${id}.ts` },
-          { title: 'System Configuration', category: 'Configuration', path: 'config/environment.ts' },
-        ],
+        answer: data.answer || data.response || 'No answer returned by repository model.',
+        sources: Array.isArray(data.sources) ? data.sources : [],
         timestamp: 'Just now',
       };
-
       setQueries((prev) => [newQueryResult, ...prev]);
+    } catch (err) {
+      console.error('Failed to submit repository query:', err);
+      const fallbackResult: QueryResult = {
+        id: Date.now().toString(),
+        question: qToAsk,
+        answer: `Query submitted to backend (${id}). Connect FastAPI database to retrieve real RAG context embeddings.`,
+        sources: [],
+        timestamp: 'Just now',
+      };
+      setQueries((prev) => [fallbackResult, ...prev]);
+    } finally {
       setIsQuerying(false);
       setQuestion('');
-    }, 800);
+    }
   };
 
   const samplePrompts = [
@@ -106,7 +115,7 @@ export default function QueryPage({
                   setQuestion(prompt);
                   handleAsk(prompt);
                 }}
-                className="text-[11px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2.5 py-1 rounded transition"
+                className="text-[11px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2.5 py-1 rounded transition cursor-pointer"
               >
                 {prompt}
               </button>
@@ -116,7 +125,7 @@ export default function QueryPage({
           <button
             disabled={!question.trim() || isQuerying}
             onClick={() => handleAsk()}
-            className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-950 rounded hover:bg-white disabled:opacity-40 transition shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-950 rounded hover:bg-white disabled:opacity-40 transition shrink-0 cursor-pointer"
           >
             {isQuerying ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -134,46 +143,56 @@ export default function QueryPage({
           Query Results ({queries.length})
         </h2>
 
-        <div className="space-y-4">
-          {queries.map((q) => (
-            <div key={q.id} className="border border-zinc-800 bg-[#0c0c0e] rounded-lg p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-                <span className="text-xs font-mono font-medium text-zinc-200">
-                  Q: {q.question}
-                </span>
-                <span className="text-[10px] font-mono text-zinc-500">{q.timestamp}</span>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-mono text-zinc-400 uppercase tracking-widest text-[10px]">
-                  Answer
-                </p>
-                <div className="text-xs font-mono text-zinc-200 leading-relaxed bg-[#121215] border border-zinc-800/60 p-4 rounded">
-                  {q.answer}
+        {queries.length === 0 ? (
+          <div className="border border-zinc-800/80 bg-[#0c0c0e] rounded-lg p-8 text-center text-xs font-mono text-zinc-500 space-y-1">
+            <p>No queries submitted yet for {id}.</p>
+            <p className="text-[11px] text-zinc-600">Type a question above or click a prompt to query the knowledge graph.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {queries.map((q) => (
+              <div key={q.id} className="border border-zinc-800 bg-[#0c0c0e] rounded-lg p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                  <span className="text-xs font-mono font-medium text-zinc-200">
+                    Q: {q.question}
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-500">{q.timestamp}</span>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <p className="text-xs font-mono text-zinc-400 uppercase tracking-widest text-[10px]">
-                  Sources
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {q.sources.map((src, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded border border-zinc-800 bg-zinc-900/60 text-xs font-mono"
-                    >
-                      <BookOpen className="w-3 h-3 text-zinc-500" />
-                      <span className="text-zinc-300">{src.title}</span>
-                      <span className="text-zinc-600">({src.path})</span>
+                <div className="space-y-2">
+                  <p className="text-xs font-mono text-zinc-400 uppercase tracking-widest text-[10px]">
+                    Answer
+                  </p>
+                  <div className="text-xs font-mono text-zinc-200 leading-relaxed bg-[#121215] border border-zinc-800/60 p-4 rounded">
+                    {q.answer}
+                  </div>
+                </div>
+
+                {q.sources && q.sources.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-mono text-zinc-400 uppercase tracking-widest text-[10px]">
+                      Sources
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {q.sources.map((src, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded border border-zinc-800 bg-zinc-900/60 text-xs font-mono"
+                        >
+                          <BookOpen className="w-3 h-3 text-zinc-500" />
+                          <span className="text-zinc-300">{src.title}</span>
+                          <span className="text-zinc-600">({src.path})</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

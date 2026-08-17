@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { Github, Check, Loader2, X, ExternalLink } from 'lucide-react';
-import { Repository } from '@/lib/mockData';
+import { useUser, useClerk } from '@clerk/nextjs';
+import { Repository } from '@/types/repository';
+import api from '@/lib/api';
 
 interface ConnectRepoModalProps {
   isOpen: boolean;
@@ -20,14 +22,41 @@ const AVAILABLE_GITHUB_REPOS = [
 ];
 
 export function ConnectRepoModal({ isOpen, onClose, onConnect }: ConnectRepoModalProps) {
+  const { isSignedIn } = useUser();
+  const { openSignIn } = useClerk();
   const [selectedRepo, setSelectedRepo] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [step, setStep] = useState<'select' | 'syncing'>('select');
 
   if (!isOpen) return null;
 
+  const handleInstallAppClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isSignedIn) {
+      onClose();
+      openSignIn();
+    } else {
+      try {
+        const res = await api.github.install();
+        if (res.data?.url) {
+          window.location.href = res.data.url;
+        } else {
+          window.open(GITHUB_APP_INSTALL_URL, '_blank', 'noopener,noreferrer');
+        }
+      } catch (err) {
+        console.error('Failed to get GitHub install URL:', err);
+        window.open(GITHUB_APP_INSTALL_URL, '_blank', 'noopener,noreferrer');
+      }
+    }
+  };
+
   const handleConnect = () => {
     if (!selectedRepo) return;
+    if (!isSignedIn) {
+      onClose();
+      openSignIn();
+      return;
+    }
     setIsConnecting(true);
     setStep('syncing');
 
@@ -81,9 +110,10 @@ export function ConnectRepoModal({ isOpen, onClose, onConnect }: ConnectRepoModa
               </div>
               <a
                 href={GITHUB_APP_INSTALL_URL}
+                onClick={handleInstallAppClick}
                 target="_blank"
                 rel="noreferrer"
-                className="px-3 py-1.5 bg-zinc-100 text-zinc-950 hover:bg-white text-xs font-medium rounded transition flex items-center gap-1 shrink-0"
+                className="px-3 py-1.5 bg-zinc-100 text-zinc-950 hover:bg-white text-xs font-medium rounded transition flex items-center gap-1 shrink-0 cursor-pointer"
               >
                 Install App
                 <ExternalLink className="w-3 h-3" />

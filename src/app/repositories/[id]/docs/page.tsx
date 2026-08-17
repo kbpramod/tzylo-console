@@ -1,9 +1,10 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { BookOpen, ChevronRight, FileText } from 'lucide-react';
-import { MOCK_DOCS, DocSection } from '@/lib/mockData';
+import { BookOpen, ChevronRight, FileText, Loader2, Inbox } from 'lucide-react';
+import { DocSection } from '@/types/repository';
+import api from '@/lib/api';
 
 export default function DocumentationPage({
   params,
@@ -11,13 +12,31 @@ export default function DocumentationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const repoDocs: DocSection[] = MOCK_DOCS[id] || MOCK_DOCS['auth-service'];
+  const [docs, setDocs] = useState<DocSection[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeSectionId, setActiveSectionId] = useState<string>('');
 
-  const [activeSectionId, setActiveSectionId] = useState<string>(
-    repoDocs[0]?.id || 'authentication'
-  );
+  useEffect(() => {
+    async function fetchDocs() {
+      try {
+        setIsLoading(true);
+        const res = await api.repositories.getDocs(id);
+        const fetchedDocs: DocSection[] = Array.isArray(res.data) ? res.data : [];
+        setDocs(fetchedDocs);
+        if (fetchedDocs.length > 0) {
+          setActiveSectionId(fetchedDocs[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch documentation:', err);
+        setDocs([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchDocs();
+  }, [id]);
 
-  const activeDoc = repoDocs.find((d) => d.id === activeSectionId) || repoDocs[0];
+  const activeDoc = docs.find((d) => d.id === activeSectionId) || docs[0];
 
   const navTabs = [
     { name: 'Overview', href: `/repositories/${id}`, active: false },
@@ -50,57 +69,77 @@ export default function DocumentationPage({
         </div>
       </div>
 
-      {/* Main Documentation Split Container */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
-        {/* Sections Sidebar */}
-        <div className="border border-zinc-800/80 bg-[#0c0c0e] rounded-lg p-3 space-y-1 md:col-span-1">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 px-2 py-1 mb-1">
-            Knowledge Sections
-          </p>
-
-          {repoDocs.map((section) => {
-            const isActive = section.id === activeSectionId;
-            return (
-              <button
-                key={section.id}
-                onClick={() => setActiveSectionId(section.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs transition font-mono ${
-                  isActive
-                    ? 'bg-zinc-800 text-zinc-100 font-medium'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5 text-zinc-500" />
-                  <span>{section.title}</span>
-                </div>
-                {isActive && <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />}
-              </button>
-            );
-          })}
+      {isLoading ? (
+        <div className="py-20 text-center space-y-3 border border-zinc-800 bg-[#0c0c0e] rounded-lg">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-500" />
+          <p className="text-xs font-mono text-zinc-500">Fetching documentation pages from backend...</p>
         </div>
+      ) : docs.length === 0 ? (
+        <div className="py-20 text-center space-y-3 border border-zinc-800 bg-[#0c0c0e] rounded-lg">
+          <Inbox className="w-8 h-8 mx-auto text-zinc-600" />
+          <p className="text-sm font-medium text-zinc-300">No documentation generated yet</p>
+          <p className="text-xs text-zinc-500 max-w-md mx-auto">
+            Documentation will be automatically compiled once pull requests and code commits are indexed for <span className="font-mono text-zinc-400">{id}</span>.
+          </p>
+        </div>
+      ) : (
+        /* Main Documentation Split Container */
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+          {/* Sections Sidebar */}
+          <div className="border border-zinc-800/80 bg-[#0c0c0e] rounded-lg p-3 space-y-1 md:col-span-1">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 px-2 py-1 mb-1">
+              Knowledge Sections
+            </p>
 
-        {/* Documentation Content Viewer */}
-        <div className="md:col-span-3 border border-zinc-800/80 bg-[#0c0c0e] rounded-lg p-6 md:p-8 min-h-[450px]">
-          <div className="space-y-6">
-            <div className="border-b border-zinc-800 pb-4">
-              <h2 className="text-xl font-medium text-zinc-100 font-sans">
-                {activeDoc.title}
-              </h2>
-              <p className="text-xs font-mono text-zinc-500 mt-1">
-                Generated from repository knowledge graph • Refreshed on PR merge
-              </p>
-            </div>
+            {docs.map((section) => {
+              const isActive = section.id === activeSectionId;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSectionId(section.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs transition font-mono ${
+                    isActive
+                      ? 'bg-zinc-800 text-zinc-100 font-medium'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>{section.title}</span>
+                  </div>
+                  {isActive && <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />}
+                </button>
+              );
+            })}
+          </div>
 
-            {/* Formatted Markdown Content Container */}
-            <div className="prose prose-invert prose-zinc max-w-none text-xs leading-relaxed space-y-4 font-mono text-zinc-300">
-              <div className="whitespace-pre-line leading-relaxed">
-                {activeDoc.content}
+          {/* Documentation Content Viewer */}
+          <div className="md:col-span-3 border border-zinc-800/80 bg-[#0c0c0e] rounded-lg p-6 md:p-8 min-h-[450px]">
+            {activeDoc ? (
+              <div className="space-y-6">
+                <div className="border-b border-zinc-800 pb-4">
+                  <h2 className="text-xl font-medium text-zinc-100 font-sans">
+                    {activeDoc.title}
+                  </h2>
+                  <p className="text-xs font-mono text-zinc-500 mt-1">
+                    Generated from repository knowledge graph • Refreshed on PR merge
+                  </p>
+                </div>
+
+                {/* Formatted Markdown Content Container */}
+                <div className="prose prose-invert prose-zinc max-w-none text-xs leading-relaxed space-y-4 font-mono text-zinc-300">
+                  <div className="whitespace-pre-line leading-relaxed">
+                    {activeDoc.content}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <p className="text-xs font-mono text-zinc-500">Select a section from the sidebar to read documentation.</p>
+            )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
+

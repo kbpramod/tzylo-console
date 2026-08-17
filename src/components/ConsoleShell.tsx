@@ -1,10 +1,12 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserButton } from '@clerk/nextjs';
-import { Home, BookOpen, MessageSquare, Plug, Settings, ChevronDown, Layers } from 'lucide-react';
-import { INITIAL_REPOSITORIES } from '@/lib/mockData';
+import { UserButton, SignInButton, useUser } from '@clerk/nextjs';
+import { Home, BookOpen, MessageSquare, Plug, Settings, Layers, LogIn } from 'lucide-react';
+import { Repository } from '@/types/repository';
+import api from '@/lib/api';
 
 interface ConsoleShellProps {
   children: React.ReactNode;
@@ -12,10 +14,33 @@ interface ConsoleShellProps {
 
 export function ConsoleShell({ children }: ConsoleShellProps) {
   const pathname = usePathname();
+  const { isSignedIn, isLoaded, user } = useUser();
+  const [repositories, setRepositories] = useState<Repository[]>([]);
 
   // Extract repo ID from URL if inside /repositories/[id]...
   const repoMatch = pathname?.match(/\/repositories\/([^/]+)/);
-  const currentRepoId = repoMatch ? repoMatch[1] : 'auth-service';
+  const currentRepoId = repoMatch ? repoMatch[1] : (repositories[0]?.id || 'default');
+
+  useEffect(() => {
+    async function syncUserAndLoadRepos() {
+      if (isSignedIn) {
+        try {
+          // Sync user session token with FastAPI backend to auto-provision user
+          await api.users.me();
+        } catch (err) {
+          console.error('Failed to sync backend user identity:', err);
+        }
+      }
+      try {
+        const res = await api.repositories.list();
+        setRepositories(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error('Failed to load sidebar repositories:', err);
+        setRepositories([]);
+      }
+    }
+    syncUserAndLoadRepos();
+  }, [isSignedIn]);
 
   const navItems = [
     {
@@ -70,8 +95,25 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
           )}
         </div>
 
+        {/* Auth Section */}
         <div className="flex items-center gap-4">
-          <UserButton />
+          {!isLoaded ? (
+            <div className="w-8 h-8 rounded-full bg-zinc-800 animate-pulse" />
+          ) : isSignedIn ? (
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono text-zinc-400 hidden sm:inline-block">
+                {user?.primaryEmailAddress?.emailAddress || user?.fullName}
+              </span>
+              <UserButton />
+            </div>
+          ) : (
+            <SignInButton mode="modal">
+              <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium font-mono bg-zinc-100 text-zinc-950 hover:bg-white rounded transition cursor-pointer">
+                <LogIn className="w-3.5 h-3.5" />
+                Sign In
+              </button>
+            </SignInButton>
+          )}
         </div>
       </header>
 
@@ -109,32 +151,34 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
               </nav>
             </div>
 
-            {/* Quick Repository Context Switcher */}
-            <div className="pt-4 border-t border-zinc-800/60">
-              <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 px-2 mb-2">
-                Active Repository
-              </p>
-              <div className="space-y-1">
-                {INITIAL_REPOSITORIES.map((repo) => (
-                  <Link
-                    key={repo.id}
-                    href={`/repositories/${repo.id}`}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded text-xs font-mono transition ${
-                      currentRepoId === repo.id
-                        ? 'text-zinc-100 font-semibold bg-zinc-900'
-                        : 'text-zinc-500 hover:text-zinc-300'
-                    }`}
-                  >
-                    <span className="truncate">{repo.name}</span>
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        repo.status === 'Ready' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+            {/* Active Repositories List */}
+            {repositories.length > 0 && (
+              <div className="pt-4 border-t border-zinc-800/60">
+                <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 px-2 mb-2">
+                  Active Repositories
+                </p>
+                <div className="space-y-1">
+                  {repositories.map((repo) => (
+                    <Link
+                      key={repo.id}
+                      href={`/repositories/${repo.id}`}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded text-xs font-mono transition ${
+                        currentRepoId === repo.id
+                          ? 'text-zinc-100 font-semibold bg-zinc-900'
+                          : 'text-zinc-500 hover:text-zinc-300'
                       }`}
-                    />
-                  </Link>
-                ))}
+                    >
+                      <span className="truncate">{repo.name}</span>
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          repo.status === 'Ready' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+                        }`}
+                      />
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="px-2 pt-4 border-t border-zinc-800/60 text-[11px] text-zinc-500 space-y-1">
@@ -151,3 +195,4 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
     </div>
   );
 }
+

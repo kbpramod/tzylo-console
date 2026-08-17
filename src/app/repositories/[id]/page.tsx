@@ -1,9 +1,10 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { GitBranch, BookOpen, MessageSquare, Plug, Settings, Check, ExternalLink } from 'lucide-react';
-import { INITIAL_REPOSITORIES } from '@/lib/mockData';
+import { GitBranch, BookOpen, MessageSquare, Plug, Settings, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { Repository } from '@/types/repository';
+import api from '@/lib/api';
 
 export default function RepositoryOverviewPage({
   params,
@@ -11,16 +12,33 @@ export default function RepositoryOverviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const repo = INITIAL_REPOSITORIES.find((r) => r.id === id) || {
-    id,
-    name: id,
-    status: 'Ready',
-    lastSync: '5 min ago',
-    knowledgeNodes: 2341,
-    docPages: 42,
-    githubUrl: `https://github.com/tzylo/${id}`,
-    connectedAt: '2026-07-15',
-  };
+  const [repo, setRepo] = useState<Repository | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchRepo() {
+      try {
+        setIsLoading(true);
+        const res = await api.repositories.get(id);
+        setRepo(res.data);
+      } catch (err) {
+        console.error('Failed to fetch repo detail:', err);
+        setRepo({
+          id,
+          name: id,
+          status: 'Ready',
+          lastSync: 'Sync pending',
+          knowledgeNodes: 0,
+          docPages: 0,
+          githubUrl: `https://github.com/${id}`,
+          connectedAt: new Date().toISOString().split('T')[0],
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchRepo();
+  }, [id]);
 
   const navTabs = [
     { name: 'Overview', href: `/repositories/${id}`, active: true },
@@ -30,27 +48,49 @@ export default function RepositoryOverviewPage({
     { name: 'Settings', href: `/repositories/${id}/settings`, active: false },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="py-20 text-center space-y-3">
+        <Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-500" />
+        <p className="text-xs font-mono text-zinc-500">Loading repository details...</p>
+      </div>
+    );
+  }
+
+  const currentRepo = repo || {
+    id,
+    name: id,
+    status: 'Ready',
+    lastSync: 'Sync pending',
+    knowledgeNodes: 0,
+    docPages: 0,
+    githubUrl: `https://github.com/${id}`,
+    connectedAt: new Date().toISOString().split('T')[0],
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-mono font-semibold text-zinc-100">{repo.name}</h1>
+            <h1 className="text-2xl font-mono font-semibold text-zinc-100">{currentRepo.name}</h1>
             <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400">
-              {repo.status}
+              {currentRepo.status || 'Ready'}
             </span>
           </div>
 
-          <a
-            href={repo.githubUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition font-mono"
-          >
-            GitHub
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          {currentRepo.githubUrl && (
+            <a
+              href={currentRepo.githubUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition font-mono"
+            >
+              GitHub
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
         </div>
 
         {/* Tab Navigation */}
@@ -78,7 +118,7 @@ export default function RepositoryOverviewPage({
             Knowledge Nodes
           </p>
           <p className="text-2xl font-mono font-semibold text-zinc-100">
-            {repo.knowledgeNodes.toLocaleString()}
+            {(currentRepo.knowledgeNodes ?? 0).toLocaleString()}
           </p>
         </div>
 
@@ -87,7 +127,7 @@ export default function RepositoryOverviewPage({
             Documentation Pages
           </p>
           <p className="text-2xl font-mono font-semibold text-zinc-100">
-            {repo.docPages}
+            {currentRepo.docPages ?? 0}
           </p>
         </div>
 
@@ -96,7 +136,7 @@ export default function RepositoryOverviewPage({
             Last Updated
           </p>
           <p className="text-2xl font-mono font-semibold text-zinc-100">
-            {repo.lastSync}
+            {currentRepo.lastSync || 'Sync pending'}
           </p>
         </div>
 
@@ -173,3 +213,4 @@ export default function RepositoryOverviewPage({
     </div>
   );
 }
+
