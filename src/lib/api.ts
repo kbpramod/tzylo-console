@@ -54,24 +54,101 @@ export default {
     install: () => mainApi.get("/api/github/install"),
   },
   meetings: {
-    uploadTranscript: async (file: File) => {
+    deployBot: async (data: {
+      platform: string;
+      meeting_url?: string;
+      native_meeting_id?: string;
+      bot_name?: string;
+      language?: string;
+      auto_record?: boolean;
+    }) => {
+      return await mainApi.post("/api/v1/meetings/join", data);
+    },
+    getBotStatus: async (botId: string) => {
+      return await mainApi.get(`/api/v1/meetings/bots/${botId}`);
+    },
+    stopBot: async (botId: string) => {
+      return await mainApi.delete(`/api/v1/meetings/bots/${botId}`);
+    },
+    uploadTranscript: async (file: File, title?: string | null) => {
       const formData = new FormData();
       formData.append("file", file);
-      // Calls /api/v1/meetings/transcript
-      try {
-        return await axios.post("/api/v1/meetings/transcript", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      } catch (err) {
-        // Fallback to mainApi if relative route fails
-        return await mainApi.post("/api/v1/meetings/transcript", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+      if (title) {
+        formData.append("title", title);
       }
+      return await mainApi.post("/api/v1/meetings/transcript/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+    },
+    ingestPastedTranscript: async (
+      data: { title?: string; transcript: string } | string,
+      title?: string
+    ) => {
+      const payload =
+        typeof data === "string"
+          ? { transcript: data, title: title || "Untitled Meeting" }
+          : { title: data.title || "Untitled Meeting", transcript: data.transcript };
+      return await mainApi.post("/api/v1/meetings/transcript", payload);
+    },
+    parseRawTranscript: async (rawText: string, title?: string) => {
+      return await mainApi.post("/api/v1/meetings/transcript", {
+        transcript: rawText,
+        title: title || "Untitled Meeting",
+      });
+    },
+    generateInsights: async (meetingId: string, transcript: any[]) => {
+      return await mainApi.post("/api/v1/meetings/ai-insights", {
+        meeting_id: meetingId,
+        transcript,
+      });
+    },
+    askQuestion: async (meetingId: string, question: string, transcript: any[]) => {
+      return await mainApi.post("/api/v1/meetings/ai-insights", {
+        meeting_id: meetingId,
+        question,
+        transcript,
+        mode: "qa",
+      });
+    },
+    syncToRepository: async (data: {
+      repoId: string;
+      meetingId: string;
+      title: string;
+      content: string;
+      actionItems?: any[];
+      decisions?: any[];
+    }) => {
+      return await mainApi.post("/api/v1/meetings/sync-repo", data);
+    },
+    list: async (statusFilter?: string) => {
+      return await mainApi.get("/api/v1/meetings", {
+        params: statusFilter ? { status_filter: statusFilter } : {},
+      });
+    },
+    get: async (meetingId: string) => {
+      return await mainApi.get(`/api/v1/meetings/${encodeURIComponent(meetingId)}`);
+    },
+    getLiveTranscript: async (meetingId: string) => {
+      return await mainApi.get(`/api/v1/meetings/${encodeURIComponent(meetingId)}/live/transcript`);
+    },
+    ingestLiveChunk: async (
+      meetingId: string,
+      chunk: {
+        speaker: string;
+        text: string;
+        completed?: boolean;
+        start_time?: number;
+        end_time?: number;
+        id?: string;
+      }
+    ) => {
+      return await mainApi.post(
+        `/api/v1/meetings/${encodeURIComponent(meetingId)}/live/transcript-chunk`,
+        chunk
+      );
     },
   },
   health: {
     checkDb: () => mainApi.get("/health/db"),
   },
 };
-
