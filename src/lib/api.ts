@@ -148,6 +148,20 @@ export default {
       );
     },
   },
+  organizations: {
+    create: (data: { name: string; slug?: string }) =>
+      mainApi.post("/organizations", data),
+    getCurrent: () =>
+      mainApi.get("/organizations/current"),
+    getMembers: () =>
+      mainApi.get("/organizations/current/members"),
+    inviteMember: (data: { email: string; role?: string }) =>
+      mainApi.post("/organizations/current/members/invite", data),
+    updateMember: (userId: string, data: { role: string }) =>
+      mainApi.patch(`/organizations/current/members/${encodeURIComponent(userId)}`, data),
+    removeMember: (userId: string) =>
+      mainApi.delete(`/organizations/current/members/${encodeURIComponent(userId)}`),
+  },
   health: {
     checkDb: () => mainApi.get("/health/db"),
   },

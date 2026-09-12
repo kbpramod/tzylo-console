@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserButton, SignInButton, useUser } from '@clerk/nextjs';
-import { Home, BookOpen, MessageSquare, Plug, Settings, Layers, LogIn, Video } from 'lucide-react';
+import { UserButton, SignInButton, useUser, OrganizationSwitcher, useOrganization } from '@clerk/nextjs';
+import { Home, BookOpen, MessageSquare, Plug, Settings, Layers, LogIn, Video, Building2 } from 'lucide-react';
 import { Repository } from '@/types/repository';
 import api from '@/lib/api';
 
@@ -15,6 +15,7 @@ interface ConsoleShellProps {
 export function ConsoleShell({ children }: ConsoleShellProps) {
   const pathname = usePathname();
   const { isSignedIn, isLoaded, user } = useUser();
+  const { organization: activeOrg, isLoaded: isOrgLoaded } = useOrganization();
   const [repositories, setRepositories] = useState<Repository[]>([]);
 
   // Extract repo ID from URL if inside /repositories/[id]...
@@ -40,7 +41,7 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
       }
     }
     syncUserAndLoadRepos();
-  }, [isSignedIn]);
+  }, [isSignedIn, activeOrg?.id]);
 
   const navItems = [
     {
@@ -65,6 +66,11 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
       icon: Video,
     },
     {
+      name: 'Organization',
+      href: '/organization',
+      icon: Building2,
+    },
+    {
       name: 'MCP',
       href: `/repositories/${currentRepoId}/mcp`,
       icon: Plug,
@@ -79,18 +85,52 @@ export function ConsoleShell({ children }: ConsoleShellProps) {
   return (
     <div className="min-h-screen flex flex-col bg-[#09090b] text-zinc-100 antialiased font-sans">
       {/* Header */}
-      <header className="h-13 border-b border-zinc-800/80 px-6 flex items-center justify-between bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2 font-mono text-sm font-semibold tracking-wider text-zinc-100 hover:opacity-90">
+      <header className="h-13 border-b border-zinc-800/80 px-4 sm:px-6 flex items-center justify-between bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-40">
+        <div className="flex items-center gap-3 sm:gap-5">
+          <Link href="/" className="flex items-center gap-2 font-mono text-sm font-semibold tracking-wider text-zinc-100 hover:opacity-90 shrink-0">
             <div className="w-5 h-5 rounded bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-xs">
               T
             </div>
             TZYLO
           </Link>
 
+          {/* Clerk Organization Switcher (Compulsory for members) */}
+          {isSignedIn && (
+            <div className="flex items-center border-l border-zinc-800 pl-3 sm:pl-5">
+              <OrganizationSwitcher
+                hidePersonal={true}
+                createOrganizationMode="modal"
+                organizationProfileMode="modal"
+                afterCreateOrganizationUrl="/organization"
+                afterSelectOrganizationUrl="/organization"
+                afterLeaveOrganizationUrl="/organization"
+                appearance={{
+                  elements: {
+                    rootBox: "flex items-center",
+                    organizationSwitcherTrigger:
+                      "flex items-center gap-2 px-2.5 py-1 rounded-md border border-zinc-800 bg-zinc-900/90 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-200 text-xs font-mono transition focus:outline-none focus:ring-1 focus:ring-cyan-500",
+                    organizationPreviewTextContainer: "text-xs font-mono text-zinc-200",
+                    organizationSwitcherTriggerIcon: "text-zinc-400 w-3.5 h-3.5",
+                    organizationPreviewMainIdentifier: "text-xs font-mono font-semibold text-zinc-100",
+                    organizationPreviewSecondaryIdentifier: "text-[10px] font-mono text-zinc-400",
+                    organizationSwitcherPopoverCard:
+                      "bg-[#0c0c0e] border border-zinc-800 text-zinc-100 shadow-2xl rounded-xl font-mono",
+                    organizationSwitcherPopoverMain: "bg-[#0c0c0e] text-zinc-100",
+                    organizationSwitcherPopoverActions: "border-t border-zinc-800 bg-[#0c0c0e]",
+                    organizationSwitcherPopoverActionButton:
+                      "text-zinc-300 hover:text-white hover:bg-zinc-900 text-xs font-mono",
+                    organizationSwitcherPopoverActionButtonIcon: "text-cyan-400",
+                    organizationListPreviewButton:
+                      "hover:bg-zinc-900 text-zinc-200 text-xs font-mono",
+                  },
+                }}
+              />
+            </div>
+          )}
+
           {/* Repository Selector Indicator */}
           {repoMatch && (
-            <div className="flex items-center gap-2 text-xs font-mono border-l border-zinc-800 pl-6">
+            <div className="flex items-center gap-2 text-xs font-mono border-l border-zinc-800 pl-3 sm:pl-5 hidden md:flex">
               <span className="text-zinc-500">repo:</span>
               <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded text-zinc-200">
                 <Layers className="w-3.5 h-3.5 text-zinc-400" />
